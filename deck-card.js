@@ -23,7 +23,7 @@
  *       card: { type: ..., ... }    # the slide: any card, e.g. a vertical-stack
  *       tap_action: { ... }         # optional: a normal HA action when the slide itself is tapped
  */
-const VERSION = "0.1.0";
+const VERSION = "0.1.1";
 const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 class DeckCard extends HTMLElement {
@@ -355,8 +355,11 @@ class DeckCardEditor extends HTMLElement {
   }
 
   _emit() {
-    this._emitted = JSON.stringify(this._config);
-    this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
+    // Send a copy: Home Assistant freezes the config it receives, and the editor keeps changing its own. Handing over
+    // this._config itself made every edit after the first fail ("Cannot assign to read only property").
+    const config = JSON.parse(JSON.stringify(this._config));
+    this._emitted = JSON.stringify(config);
+    this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
   }
 
   _render() {
