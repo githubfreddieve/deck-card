@@ -41,6 +41,7 @@ slides:
 | `thumbs` | `true` | The strip of named thumbnails under the deck. A thumbnail shows its `entity`'s state under the name. |
 | `dots` | `true` | Page dots under the thumbnails. |
 | `max_width` | `480` | The widest a slide gets, in pixels; `0` means no limit. On a wide screen the deck stays centred at this size instead of stretching across the dashboard. |
+| `corner_radius` | theme | Rounds every slide's corners, in pixels, whatever card is inside (useful for cards that draw square corners, such as power-flow cards). `0` is square; left unset it follows the theme's card radius. |
 | `height` | `tallest` | `tallest`: the deck keeps the height of its tallest slide, so the thumbnails never jump. `current`: it follows the slide in view. |
 
 A slide's `tap_action` is a normal Home Assistant action (`more-info`, `navigate`, `perform-action`, a browser_mod pop-up, …) that runs when the slide itself is tapped. It's meant for slides whose card has no buttons of its own.
