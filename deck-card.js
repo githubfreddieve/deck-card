@@ -14,6 +14,7 @@
  *   thumbs: true                    # default true: the strip of named thumbnails
  *   dots: true                      # default true: page dots under the thumbnails
  *   max_width: 480                  # default 480: the widest a slide gets, in px (0 = no limit)
+ *   corner_radius: 18              # optional: rounds every slide's corners, in px (0 = square); unset follows the theme
  *   height: tallest                 # tallest (default): the deck keeps the height of its tallest slide, so the
  *                                   #   thumbnails never move; current: it follows the slide in the middle
  *   slides:
@@ -23,7 +24,7 @@
  *       card: { type: ..., ... }    # the slide: any card, e.g. a vertical-stack
  *       tap_action: { ... }         # optional: a normal HA action when the slide itself is tapped
  */
-const VERSION = "0.1.1";
+const VERSION = "0.2.0";
 const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 class DeckCard extends HTMLElement {
@@ -84,9 +85,13 @@ class DeckCard extends HTMLElement {
       <style>
         :host { display: block; }
         .track { position: relative; /* slides measure their offsetLeft from the track, not the page */ display: flex; align-items: flex-start; overflow-x: auto; overflow-y: hidden; transition: height .25s ease; scroll-snap-type: x mandatory; scrollbar-width: none;
-                 overscroll-behavior-x: contain; border-radius: var(--ha-card-border-radius, 12px); }
+                 overscroll-behavior-x: contain; border-radius: var(--deck-radius); }
         .track::-webkit-scrollbar { display: none; }
         .slide { flex: 0 0 100%; scroll-snap-align: center; scroll-snap-stop: always; box-sizing: border-box; }
+        /* corner_radius: every slide is clipped to the same rounded corners, whatever card is inside it (some cards,
+           such as power-flow cards, draw square corners of their own). */
+        .slide { border-radius: var(--deck-radius); overflow: clip; }
+        .slide > * { --ha-card-border-radius: var(--deck-radius); }
         /* --w is the slide width: the whole width (slide) or 78% (coverflow), never more than max_width.
            Slide mode: the whole carousel is --w wide, centred. Coverflow: the track keeps the full width so the
            neighbours show, each card is --w and overlaps its neighbours by a tenth of --w; a wide screen simply
@@ -100,7 +105,7 @@ class DeckCard extends HTMLElement {
                         will-change: transform, opacity; }
         .cover .slide:first-child { margin-left: calc((100% - var(--w)) / 2); }
         .cover .slide:last-child { margin-right: calc((100% - var(--w)) / 2); }
-        .cover .slide.current { box-shadow: 0 6px 20px rgba(0, 0, 0, .35); border-radius: var(--ha-card-border-radius, 12px); }
+        .cover .slide.current { box-shadow: 0 6px 20px rgba(0, 0, 0, .35); }
         .cover .slide:not(.current) > * { pointer-events: none; }
         .cover .slide:not(.current), .slide.tappable { cursor: pointer; }
         .thumbs { display: flex; gap: 8px; margin-top: 8px; overflow-x: auto; scrollbar-width: none; padding: 2px; }
@@ -127,7 +132,7 @@ class DeckCard extends HTMLElement {
         .dot[aria-current="true"]::after { width: 18px; opacity: 1; background: var(--primary-color); }
         @media (prefers-reduced-motion: reduce) { .track, .thumbs button, .dot::after { transition: none; } }
       </style>
-      <div class="wrap ${cover ? "cover" : ""}" style="--w: ${this._width(cover)}">
+      <div class="wrap ${cover ? "cover" : ""}" style="--w: ${this._width(cover)}; --deck-radius: ${this._radius()}">
         <div class="track" role="region" aria-roledescription="carousel"></div>
         <div class="thumbs" role="group" aria-label="Choose a slide"></div>
         <div class="dots" role="group" aria-label="Slide position"></div>
@@ -202,6 +207,12 @@ class DeckCard extends HTMLElement {
     this._building = false;
     requestAnimationFrame(() => this._go(0, false));
     this._renderThumbs();
+  }
+
+  // corner_radius in px; unset follows the theme's card radius (12px by default), 0 gives square corners.
+  _radius() {
+    const r = this._config.corner_radius;
+    return r === undefined || r === null || r === "" || isNaN(Number(r)) ? "var(--ha-card-border-radius, 12px)" : `${Math.max(0, Number(r))}px`;
   }
 
   _width(cover) {
@@ -312,6 +323,7 @@ const GENERAL_SCHEMA = [
   { name: "effect", selector: { select: { mode: "dropdown", options: [
     { value: "coverflow", label: "Coverflow (neighbours visible behind)" }, { value: "slide", label: "Slide (one card fills the width)" }] } } },
   { name: "max_width", selector: { number: { min: 0, max: 1600, step: 10, mode: "box", unit_of_measurement: "px" } } },
+  { name: "corner_radius", selector: { number: { min: 0, max: 40, step: 1, mode: "slider", unit_of_measurement: "px" } } },
   { name: "height", selector: { select: { mode: "dropdown", options: [
     { value: "tallest", label: "Fixed: tallest slide (thumbnails never move)" }, { value: "current", label: "Follow the current slide" }] } } },
   { type: "grid", name: "", schema: [
@@ -322,7 +334,7 @@ const THUMB_SCHEMA = [
   { name: "entity", selector: { entity: {} } },
   { name: "tap_action", selector: { ui_action: {} } },
 ];
-const LABELS = { effect: "Effect", max_width: "Largest slide width (0 = no limit)", height: "Height", loop: "Loop round", thumbs: "Thumbnails", dots: "Dots",
+const LABELS = { effect: "Effect", max_width: "Largest slide width (0 = no limit)", corner_radius: "Corner rounding (0 = square; empty follows the theme)", height: "Height", loop: "Loop round", thumbs: "Thumbnails", dots: "Dots",
                  name: "Thumbnail name", icon: "Thumbnail icon", entity: "Thumbnail shows this entity's state",
                  tap_action: "Tap on the slide (optional; for cards without buttons of their own)" };
 const DEFAULTS = { effect: "slide", max_width: 480, height: "tallest", loop: true, thumbs: true, dots: true };
